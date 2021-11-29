@@ -47,20 +47,17 @@ SPI_HandleTypeDef hspi1;
 /* USER CODE BEGIN PV */
 
 ////////////////////////////////////////////////
-uint16_t Pomiar_ADC;
-float Temperature;
-float Vsense;
+volatile uint16_t Pomiar_ADC;
+volatile float Temperature_ADC;
+volatile float Vsense;
 // Parametry z dokumentacji do obliczenia temperatury
-const float V25 = 0.76;		// Volt
-const float Avg_slope = 0.0025;	  // Volts/degree
-const float Supply_voltage = 3.0; // Volt
-const float ADCResolution = 4096.0; // 2^resolution -> 2^12 = 4096
+volatile const float V25 = 0.76;		// Volt
+volatile const float Avg_slope = 0.0025;	  // Volts/degree
+volatile const float Supply_voltage = 3.0; // Volt
+volatile const float ADCResolution = 4096.0; // 2^resolution -> 2^12 = 4096
 ////////////////////////////////////////////////
-uint16_t Pomiar_SPI;
-uint8_t buffer_Rx[16];
-const float T_otoczenia = 25;
-float VOUT_SPI;
-
+float Temperature_SPI = 0;
+uint8_t DATARX[2];                                    // dane z MAX6675
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -74,37 +71,24 @@ static void MX_SPI1_Init(void);
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc) {
 	Pomiar_ADC = HAL_ADC_GetValue(&hadc1); // otrzymana wartość z przetwornika (To nie jeest w stopniach C)
 	Vsense = (Supply_voltage * Pomiar_ADC) / (ADCResolution - 1); // zamiana wartości z czujnika na napięcie
-	Temperature = ((Vsense - V25) / Avg_slope) + 25; // obliczenie temperatury
+	Temperature_ADC = ((Vsense - V25) / Avg_slope) + 25; // obliczenie temperatury
+	HAL_ADC_Start_IT(&hadc1);
 }
 
-// Co się stanie gdy zostanie wywołane przerwanie SPI
-void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef *hspi) {
-	Pomiar_SPI = HAL_SPI_Receive_IT(&hspi1, buffer_Rx, 16);
+void SPI_Temperature() {
+	HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_RESET); 	// Niski stan CS
+	HAL_SPI_Receive(&hspi1, DATARX, 1, 50);           // Rozpoczęcie odbioru SPI
+	HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_SET); // Wysoki stan CS - potwierdzenie rozpoczęcia odbioru danych
+
+	Temperature_SPI = ((((DATARX[0] | DATARX[1] << 8))) >> 3); // Przesunięcie bitowe, pobranie tylko wartości temperatury
+	Temperature_SPI *= 0.25;                 // zamiana na stopnie Celsjusza [dokumentacja]
+	HAL_Delay(250); // konwersja trwa 220ms ale poczekaj 250 na przyjęcie kolejnej ramki danych
 }
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
-
-// Funkcje dodane jedynie abym mógł odczytać wartość w debugerze
-void do_some() {
-	float a = 0;
-	if (a < 10) {
-		a++;
-	} else {
-		a = 0;
-	}
-}
-void do_some2() {
-	float b = 0;
-	if (b < 10) {
-		b++;
-	} else {
-		b = 0;
-	}
-}
 
 /* USER CODE END 0 */
 
@@ -140,7 +124,6 @@ int main(void) {
 	/* USER CODE BEGIN 2 */
 
 	HAL_ADC_Start_IT(&hadc1);	// Uruchomienie konwersji przetwornika ADC
-	HAL_SPI_Receive_IT(&hspi1, buffer_Rx, 100);// uruchomienie przerwania odbioru SPI
 
 	/* USER CODE END 2 */
 
@@ -150,9 +133,8 @@ int main(void) {
 		/* USER CODE END WHILE */
 
 		/* USER CODE BEGIN 3 */
+		SPI_Temperature();
 
-		do_some();
-		do_some2();
 	}
 	/* USER CODE END 3 */
 }
@@ -260,9 +242,9 @@ static void MX_SPI1_Init(void) {
 	hspi1.Init.Direction = SPI_DIRECTION_2LINES_RXONLY;
 	hspi1.Init.DataSize = SPI_DATASIZE_16BIT;
 	hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
-	hspi1.Init.CLKPhase = SPI_PHASE_2EDGE;
-	hspi1.Init.NSS = SPI_NSS_HARD_OUTPUT;
-	hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_128;
+	hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
+	hspi1.Init.NSS = SPI_NSS_SOFT;
+	hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_256;
 	hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
 	hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
 	hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -282,9 +264,20 @@ static void MX_SPI1_Init(void) {
  * @retval None
  */
 static void MX_GPIO_Init(void) {
+	GPIO_InitTypeDef GPIO_InitStruct = { 0 };
 
 	/* GPIO Ports Clock Enable */
 	__HAL_RCC_GPIOA_CLK_ENABLE();
+
+	/*Configure GPIO pin Output Level */
+	HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_RESET);
+
+	/*Configure GPIO pin : CS_Pin */
+	GPIO_InitStruct.Pin = CS_Pin;
+	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+	HAL_GPIO_Init(CS_GPIO_Port, &GPIO_InitStruct);
 
 }
 
