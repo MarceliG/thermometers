@@ -431,7 +431,7 @@ void SPI_Temperature() {
  800057e:	4914      	ldr	r1, [pc, #80]	; (80005d0 <SPI_Temperature+0x64>)
  8000580:	4814      	ldr	r0, [pc, #80]	; (80005d4 <SPI_Temperature+0x68>)
  8000582:	f001 ff1c 	bl	80023be <HAL_SPI_Receive>
-	HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_SET); // Wysoki stan CS - potwierdzenie rozpoczęcia odbioru danych
+	HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_SET); // Wysoki stan CS - rozpoczęcia odbioru danych
  8000586:	2201      	movs	r2, #1
  8000588:	2110      	movs	r1, #16
  800058a:	4810      	ldr	r0, [pc, #64]	; (80005cc <SPI_Temperature+0x60>)
@@ -450,7 +450,7 @@ void SPI_Temperature() {
  80005a4:	eef8 7ae7 	vcvt.f32.s32	s15, s15
  80005a8:	4b0b      	ldr	r3, [pc, #44]	; (80005d8 <SPI_Temperature+0x6c>)
  80005aa:	edc3 7a00 	vstr	s15, [r3]
-	Temperature_SPI *= 0.25;                 // zamiana na stopnie Celsjusza [dokumentacja]
+	Temperature_SPI *= 0.25;                 // zamiana na stopnie Celsjusza
  80005ae:	4b0a      	ldr	r3, [pc, #40]	; (80005d8 <SPI_Temperature+0x6c>)
  80005b0:	edd3 7a00 	vldr	s15, [r3]
  80005b4:	eeb5 7a00 	vmov.f32	s14, #80	; 0x3e800000  0.250

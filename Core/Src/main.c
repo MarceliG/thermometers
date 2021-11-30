@@ -56,8 +56,9 @@ volatile const float Avg_slope = 0.0025;	  // Volts/degree
 volatile const float Supply_voltage = 3.0; // Volt
 volatile const float ADCResolution = 4096.0; // 2^resolution -> 2^12 = 4096
 ////////////////////////////////////////////////
-float Temperature_SPI = 0;
-uint8_t DATARX[2];                                    // dane z MAX6675
+float Temperature_SPI = 0;	// odczyt temperatury
+uint8_t DATARX[2];		// dane z MAX6675
+////////////////////////////////////////////////
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -78,10 +79,10 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc) {
 void SPI_Temperature() {
 	HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_RESET); 	// Niski stan CS
 	HAL_SPI_Receive(&hspi1, DATARX, 1, 50);           // Rozpoczęcie odbioru SPI
-	HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_SET); // Wysoki stan CS - potwierdzenie rozpoczęcia odbioru danych
+	HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_SET); // Wysoki stan CS - rozpoczęcia odbioru danych
 
 	Temperature_SPI = ((((DATARX[0] | DATARX[1] << 8))) >> 3); // Przesunięcie bitowe, pobranie tylko wartości temperatury
-	Temperature_SPI *= 0.25;                 // zamiana na stopnie Celsjusza [dokumentacja]
+	Temperature_SPI *= 0.25;                 // zamiana na stopnie Celsjusza
 	HAL_Delay(250); // konwersja trwa 220ms ale poczekaj 250 na przyjęcie kolejnej ramki danych
 }
 
